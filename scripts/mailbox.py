@@ -49,6 +49,21 @@ def is_stop(body):
     return body.strip().lower() in STOP_WORDS
 
 
+def poll_pending(email_pw=None):
+    """非阻塞拉取一次：返回当前所有来自对端的未读邮件 [{num, body}]，并落盘。
+
+    用于"用户主动发问"场景（应答器循环每次 tick 调一次）。body 已剥除引用原文。
+    无新邮件时返回 []。
+    """
+    msgs = []
+    for m in fetch_unread(email_pw):
+        if not is_from_peer(m):
+            continue
+        persist(m)
+        msgs.append({"num": m["num"], "body": _strip_quote(m["body"])})
+    return msgs
+
+
 def wait_for_reply(timeout=1500, poll_seconds=15, email_pw=None, log=lambda s: None):
     """阻塞轮询，直到收到对端回复或超时。
 
