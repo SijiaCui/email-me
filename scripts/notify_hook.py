@@ -4,7 +4,7 @@
 Notification 事件不支持注入决策（无法远程点"允许"），因此这里只做提醒：
 告诉你 Claude 卡在哪了，你可以回电脑处理，或在随后的 Stop 闭环里遥控。
 
-仅在 EMAIL_REMOTE 为真时启用。
+仅在已布防（/email-me:remote on|once）时启用，默认 off 完全静默。
 """
 import json
 import os
@@ -16,10 +16,10 @@ from mailbox import arm_state  # noqa: E402
 
 
 def main():
-    if not os.getenv("EMAIL_REMOTE") or not os.getenv("EMAIL_PW"):
-        sys.exit(0)
     if arm_state() == "off":
-        sys.exit(0)  # 未布防：不打扰
+        sys.exit(0)  # 未布防（默认）：不打扰
+    if not os.getenv("EMAIL_PW"):
+        sys.exit(0)
     try:
         payload = json.load(sys.stdin)
     except Exception:

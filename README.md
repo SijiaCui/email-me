@@ -77,10 +77,9 @@ claude plugin install email-me@ohocui-plugins --scope project
 export EMAIL_BOT=<bot 发件邮箱(163)，如 your-bot@163.com>
 export EMAIL_PW=<bot 邮箱的 IMAP/SMTP 授权码>
 export EMAIL_PEER=<你的收件邮箱，如 you@example.com>
-export EMAIL_REMOTE=1   # 功能总闸；还需 /email-me:remote on 布防才会真正发邮件
 ```
 
-> **两级控制**：`EMAIL_REMOTE` 是功能总闸（放 shell rc 里长期开着无妨）；真正决定"停下时是否发邮件+等待"的是**布防状态**，默认 `off`，用 `/email-me:remote` 随时切换。只有 `EMAIL_REMOTE=1` **且**已布防，hook 才会动作——所以本地日常交互不会被每次停下打扰。
+> **布防开关**：Stop/Notification hook 默认 `off`、完全静默，不会被每次停下打扰。要远程盯任务时用 `/email-me:remote on`（或 `once` 只等一次）布防，hook 才会发邮件+等待；`off` 撤防。这是唯一的总开关，无需任何环境变量。
 > SMTP/IMAP **服务器硬编码为 163**（`smtp.163.com` / `imap.163.com`），换服务商需改 `scripts/send.py` / `scripts/receive.py`。
 
 ### 3. 验证
@@ -101,7 +100,6 @@ export EMAIL_REMOTE=1   # 功能总闸；还需 /email-me:remote on 布防才会
 | `EMAIL_BOT` | 必填 | 发件+被监控的 bot 邮箱（163） |
 | `EMAIL_PW` | 必填 | bot 邮箱授权码 |
 | `EMAIL_PEER` | 必填 | 你的收件地址 |
-| `EMAIL_REMOTE` | 未设 | 功能总闸；设为非空值才允许 hook 动作（还需 `/email-me:remote on` 布防） |
 | `EMAIL_WAIT_TIMEOUT` | `1500` | Stop hook 等回复的秒数（须 ≤ hooks.json 的 `timeout` 1800） |
 
 ## 限制

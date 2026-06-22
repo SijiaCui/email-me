@@ -9,8 +9,8 @@
      回复 stop/结束 -> 放行，会话真正结束；
      超时无回复 -> 放行。
 
-仅在环境变量 EMAIL_REMOTE 为真时启用，避免本地日常使用被打扰。
-需要 EMAIL_PW（bot 邮箱授权码），可选 EMAIL_PEER（你的收件地址）。
+仅在已布防（/email-me:remote on|once）时启用，默认 off 完全静默，避免本地日常使用被打扰。
+需要 EMAIL_PW（bot 邮箱授权码）、EMAIL_PEER（你的收件地址）。
 """
 import json
 import os
@@ -59,11 +59,9 @@ def _last_assistant_text(transcript_path):
 
 
 def main():
-    if not os.getenv("EMAIL_REMOTE"):
-        sys.exit(0)  # 功能总闸未开，正常放行
     mode = arm_state()
     if mode == "off":
-        sys.exit(0)  # 未布防：停下不打扰（默认），不发邮件、不阻塞
+        sys.exit(0)  # 未布防（默认）：停下不打扰，不发邮件、不阻塞
     if not os.getenv("EMAIL_PW"):
         _log("EMAIL_PW 未设置，跳过")
         sys.exit(0)

@@ -16,5 +16,4 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/remote.py $ARGUMENTS
 - `off` —— 撤防（默认）：停下不打扰，正常结束。
 - `status` / 不带参数 —— 查看当前状态。
 
-未布防（off）时，即使 `EMAIL_REMOTE=1`，Stop/Notification hook 也完全静默。
-布防需配合 `EMAIL_REMOTE=1`（功能总闸）才生效。
+未布防（off，默认）时 Stop/Notification hook 完全静默——这是唯一的总开关。

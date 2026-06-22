@@ -7,7 +7,6 @@
   remote.py status   查看当前状态（默认）
 
 布防状态存在文件里，可在会话运行中随时切换，无需重启 shell。
-注意：还需 EMAIL_REMOTE=1（功能总闸）布防才会真正生效。
 """
 import os
 import sys
@@ -32,10 +31,6 @@ def main():
             print(e, file=sys.stderr)
             sys.exit(1)
         print(f"remote -> {arg}（{_DESC[arg]}）")
-
-    if not os.getenv("EMAIL_REMOTE"):
-        print("提示：EMAIL_REMOTE 未设置，hook 不会生效；请先 export EMAIL_REMOTE=1。",
-              file=sys.stderr)
 
 
 if __name__ == "__main__":
