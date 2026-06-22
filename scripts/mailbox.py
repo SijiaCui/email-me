@@ -16,7 +16,7 @@ INBOX_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "inbo
 STOP_WORDS = {"stop", "结束", "停止", "退出", "done", "quit"}
 
 
-def _from_peer(m):
+def is_from_peer(m):
     """是否来自配置的对端，且不是 bot 自己发出的通知。"""
     if m["subject"].strip() == SUBJECT:
         return False
@@ -32,7 +32,8 @@ def drain(email_pw=None):
         pass
 
 
-def _persist(m):
+def persist(m):
+    """把一封邮件落盘到 inbox/<num>.txt，返回文件路径。"""
     os.makedirs(INBOX_DIR, exist_ok=True)
     path = os.path.join(INBOX_DIR, f"{m['num']}.txt")
     with open(path, "w", encoding="utf-8") as f:
@@ -59,9 +60,9 @@ def wait_for_reply(timeout=1500, poll_seconds=15, email_pw=None, log=lambda s: N
     while time.time() < deadline:
         try:
             for m in fetch_unread(email_pw):
-                if not _from_peer(m):
+                if not is_from_peer(m):
                     continue
-                path = _persist(m)
+                path = persist(m)
                 log(f"收到回复 num={m['num']} -> {path}")
                 return _strip_quote(m["body"]), path
         except Exception as e:
@@ -72,8 +73,8 @@ def wait_for_reply(timeout=1500, poll_seconds=15, email_pw=None, log=lambda s: N
 
 def _strip_quote(body):
     """截掉客户端自动附带的引用原文，只保留用户实际写的内容。"""
-    for marker in ("----", "------", "原邮件", "Original Message", "发件人:", "On "):
-        idx = body.find(marker)
-        if idx > 0:
-            body = body[:idx]
+    markers = ("----", "原邮件", "Original Message", "发件人:", "On ")
+    cuts = [p for p in (body.find(m) for m in markers) if p > 0]
+    if cuts:
+        body = body[:min(cuts)]
     return body.strip()

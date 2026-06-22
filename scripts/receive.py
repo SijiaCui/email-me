@@ -75,14 +75,6 @@ def fetch_unread(email_pw=None):
         mail.logout()
 
 
-def receive_emails(email_pw=None):
-    """收取未读邮件并打印编号，返回编号列表。"""
-    nums = []
-    for m in fetch_unread(email_pw):
-        nums.append(m["num"])
-        print(f"收到新邮件编号: {m['num']}")
-    return nums
-
-
 if __name__ == "__main__":
-    receive_emails()
+    for _m in fetch_unread():
+        print(f"收到新邮件编号: {_m['num']}")
