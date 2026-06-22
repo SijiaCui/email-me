@@ -1,37 +1,39 @@
 ---
 name: notify
-description: 当出现需要让用户尽快知道的重要事件时，通过邮件提醒用户。适用于：长耗时任务（训练、构建、部署）完成或失败；监控/检查发现异常或告警；遇到需要用户拍板的决策点。当事件重要且用户可能不在电脑旁时使用本技能。
+description: Email the user when an important event needs their attention — a long-running task (training, build, deploy) finished or failed; a check or monitor found an anomaly or alert; or a decision is needed before continuing. Use when the event matters and the user may be away from the keyboard.
 ---
 
-# 邮件提醒用户
+# Notify the user by email
 
-用于在重要事件发生时主动通过邮件触达用户，让用户随时随地知晓并指导任务。
+Proactively reach the user by email on important events so they can stay aware
+and steer the task from anywhere.
 
-## 何时使用
-- 训练 / 构建 / 部署等长耗时任务**完成或失败**
-- 监控、巡检、测试发现**异常或告警**
-- 遇到**需要用户决策**才能继续的岔路口
+## When to use
+- A long-running task (training / build / deploy) **finished or failed**.
+- Monitoring, a scan, or tests found an **anomaly or alert**.
+- You hit a fork that **needs the user's decision** to continue.
 
-日常的、琐碎的停顿不要用本技能打扰用户。
+Do not use this for routine or trivial pauses.
 
-## 如何使用
+## How to use
 
-只通知（发完即返回，不等待）：
-
-```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/scripts/notify.py "训练任务完成：5 epoch，val_acc=0.93"
-```
-
-需要用户拍板时，加 `--wait` 阻塞等待回复，回复内容会打印到 stdout：
+Notify only (returns immediately, no wait):
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/scripts/notify.py --wait "构建失败，是否回滚到上一版本？"
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/notify.py "Training done: 5 epochs, val_acc=0.93"
 ```
 
-读取该命令的 stdout 作为用户指示：
-- 正常文本 → 按其内容继续；
-- `STOP` → 用户要求停止，不要继续；
-- 空 → 超时未回复，自行判断是否继续等待或采取保守默认。
+When you need the user to decide, add `--wait` to block for a reply, which is
+printed to stdout:
 
-## 前提
-需要环境变量 `EMAIL_PW`（bot 邮箱授权码）。收件人默认取 `EMAIL_PEER`。
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/notify.py --wait "Build failed — roll back to the previous version?"
+```
+
+Read the command's stdout as the user's instruction:
+- plain text → proceed per its content;
+- `STOP` → the user asked to stop; do not continue;
+- empty → timed out with no reply; decide whether to keep waiting or take a safe default.
+
+## Requirements
+Needs `EMAIL_PW` (the bot mailbox auth code); the recipient defaults to `EMAIL_PEER`.

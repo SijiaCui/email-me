@@ -5,7 +5,7 @@
     {
       "name": "email-me",
       "source": "./",
-      "description": "通过邮件远程监控、监督并指导 Claude：任务停下/需决策/重要事件时发邮件提醒，你回复邮件即可遥控 Claude 继续。"
+      "description": "Remote-control Claude Code over email: get alerted when a task stops, needs a decision, or hits an important event, then reply to steer the next step."
     }
   ]
 }

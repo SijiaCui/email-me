@@ -1,29 +1,33 @@
 ---
-description: 拉一次邮箱，把用户主动发来的问题当作查询，查实时状态后回信
+description: Fetch the inbox once; answer any user email with live task state
 allowed-tools: Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/poll_once.py), Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/send.py *), Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/notify.py *)
 ---
 
-拉取一次 bot 收件箱，处理用户主动发来的邮件查询。
+Poll the bot inbox once and answer any questions the user emailed.
 
-1. 运行：
+1. Run:
 
    ```
    python3 ${CLAUDE_PLUGIN_ROOT}/scripts/poll_once.py
    ```
 
-2. 解析 stdout：
-   - 输出 `NO_MAIL` → 没有新问题，本次什么都不用做，直接结束。
-   - 每个 `===MAIL num=N===` 块后面是用户的一条问题。
+2. Parse stdout:
+   - `NO_MAIL` → no new questions; do nothing and finish.
+   - Each `===MAIL num=N===` block is followed by one question from the user.
 
-3. 对每条问题：把它当作对**当前正在进行的工作**的提问（例如"训练进展如何？""现在第几个 epoch？""有没有报错？"）。
-   - 主动收集回答所需的实时状态：`tail` 训练日志、读取 metrics 文件、查看后台任务输出、`git status` 等，**用真实数据回答，不要编造**。
-   - 用下面的命令把答案回信给用户（正文用你组织好的简明结论）：
+3. For each question, treat it as being about the **work currently in progress**
+   (e.g. "How's training going?", "Which epoch now?", "Any errors?").
+   - Gather the live state needed to answer: `tail` the training log, read the
+     metrics file, check background task output, `git status`, etc. **Answer
+     from real data — never make it up.**
+   - Email the answer back (body = your concise conclusion):
 
      ```
-     python3 ${CLAUDE_PLUGIN_ROOT}/scripts/notify.py "<你的回答>"
+     python3 ${CLAUDE_PLUGIN_ROOT}/scripts/notify.py "<your answer>"
      ```
 
-4. 处理完所有邮件后结束本次调用。
+4. Finish once all emails are handled.
 
-> 持续应答：配合 `/loop` 周期运行本命令即可，例如 `/loop 60s /email-me:watch`，
-> 这样用户可以在任意时刻发邮件提问，约一分钟内收到带实时状态的回信。
+> Standing responder: run this on an interval with `/loop`, e.g.
+> `/loop 60s /email-me:watch`, so the user can ask anytime and get a reply with
+> live state within about a minute.
