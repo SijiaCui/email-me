@@ -7,7 +7,7 @@ import os
 import time
 from email.utils import parseaddr
 
-from receive import fetch_unread
+from receive import fetch_unread, connect, fetch_unread_on
 from send import PEER, SUBJECT
 
 INBOX_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "inbox")
@@ -57,18 +57,34 @@ def wait_for_reply(timeout=1500, poll_seconds=15, email_pw=None, log=lambda s: N
     """
     email_pw = email_pw or os.getenv("EMAIL_PW")
     deadline = time.time() + timeout
-    while time.time() < deadline:
+    mail = None  # 跨轮询复用同一连接，避免上百次重复登录触发 163 限流
+    try:
+        while time.time() < deadline:
+            try:
+                if mail is None:
+                    mail = connect(email_pw)
+                for m in fetch_unread_on(mail):
+                    if not is_from_peer(m):
+                        continue
+                    path = persist(m)
+                    log(f"收到回复 num={m['num']} -> {path}")
+                    return _strip_quote(m["body"]), path
+            except Exception as e:
+                log(f"轮询出错: {e}")
+                mail = _safe_logout(mail)  # 连接可能已坏，下轮重连
+            time.sleep(poll_seconds)
+        return None, None
+    finally:
+        _safe_logout(mail)
+
+
+def _safe_logout(mail):
+    if mail is not None:
         try:
-            for m in fetch_unread(email_pw):
-                if not is_from_peer(m):
-                    continue
-                path = persist(m)
-                log(f"收到回复 num={m['num']} -> {path}")
-                return _strip_quote(m["body"]), path
-        except Exception as e:
-            log(f"轮询出错: {e}")
-        time.sleep(poll_seconds)
-    return None, None
+            mail.logout()
+        except Exception:
+            pass
+    return None
 
 
 def _strip_quote(body):

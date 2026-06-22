@@ -3,6 +3,7 @@ from email.header import Header
 from email.mime.text import MIMEText
 from email.utils import formataddr
 import os
+import sys
 
 smtp_server = "smtp.163.com"  # 服务器硬编码为 163
 sender = os.getenv("EMAIL_BOT")  # bot 账号,必填(无默认,避免把个人邮箱写进代码)
@@ -33,7 +34,8 @@ def send_email(body, receiver=None, email_pw=None):
         server = smtplib.SMTP_SSL(smtp_server, 465)
         server.login(sender, email_pw)
         server.sendmail(sender, [receiver], message.as_string())
-        print("邮件发送成功")
+        # 走 stderr：stdout 是 hook 决策 JSON / notify --wait 指令的专用通道，不能污染
+        print("邮件发送成功", file=sys.stderr)
     finally:
         if server is not None:
             server.quit()

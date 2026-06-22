@@ -37,7 +37,13 @@ def _body(msg):
     return payload.decode(charset, errors="replace") if payload else ""
 
 
-def _connect(email_pw):
+def connect(email_pw=None):
+    """建立并返回一个已登录、已 SELECT INBOX 的 IMAP 连接。调用方负责 logout。
+
+    供需要跨多次轮询复用同一连接的场景使用（见 mailbox.wait_for_reply），
+    避免每次轮询都重新登录而触发 163 的登录频率限制。
+    """
+    email_pw = email_pw or os.getenv("EMAIL_PW")
     if not username:
         raise RuntimeError("EMAIL_BOT 未设置(bot 邮箱)")
     mail = imaplib.IMAP4_SSL(imap_server, 993)
@@ -51,28 +57,36 @@ def _connect(email_pw):
     return mail
 
 
-def fetch_unread(email_pw=None):
-    """收取未读邮件，返回 [{num, from_addr, subject, body}] 列表。"""
-    email_pw = email_pw or os.getenv("EMAIL_PW")
-    mail = _connect(email_pw)
-    try:
-        status, messages = mail.search(None, "UNSEEN")
-        if status != "OK":
-            raise RuntimeError(f"搜索邮件失败: {status}")
+def fetch_unread_on(mail):
+    """用一个已有连接收取未读邮件。先 NOOP 刷新，让服务器报告期间新到的邮件。"""
+    mail.noop()
+    status, messages = mail.search(None, "UNSEEN")
+    if status != "OK":
+        raise RuntimeError(f"搜索邮件失败: {status}")
 
-        results = []
-        for num in messages[0].split():
-            _, data = mail.fetch(num, "(RFC822)")
-            msg = message_from_bytes(data[0][1])
-            results.append({
-                "num": num.decode("utf-8"),
-                "from_addr": _decode(msg.get("From")),
-                "subject": _decode(msg.get("Subject")),
-                "body": _body(msg),
-            })
-        return results
+    results = []
+    for num in messages[0].split():
+        _, data = mail.fetch(num, "(RFC822)")
+        msg = message_from_bytes(data[0][1])
+        results.append({
+            "num": num.decode("utf-8"),
+            "from_addr": _decode(msg.get("From")),
+            "subject": _decode(msg.get("Subject")),
+            "body": _body(msg),
+        })
+    return results
+
+
+def fetch_unread(email_pw=None):
+    """一次性收取未读邮件（自建连接并登出），返回 [{num, from_addr, subject, body}]。"""
+    mail = connect(email_pw)
+    try:
+        return fetch_unread_on(mail)
     finally:
-        mail.logout()
+        try:
+            mail.logout()
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
