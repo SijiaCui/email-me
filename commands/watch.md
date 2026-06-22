@@ -25,5 +25,5 @@ allowed-tools: Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/poll_once.py), Bash(py
 
 4. 处理完所有邮件后结束本次调用。
 
-> 持续应答：配合 `/loop` 周期运行本命令即可，例如 `/loop 60s /email-watch`，
+> 持续应答：配合 `/loop` 周期运行本命令即可，例如 `/loop 60s /email-me:watch`，
 > 这样用户可以在任意时刻发邮件提问，约一分钟内收到带实时状态的回信。

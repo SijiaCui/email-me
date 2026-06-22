@@ -24,11 +24,11 @@ Claude 停下 ──Stop hook──▶ 发汇报邮件 ──▶ 阻塞轮询收
 | `hooks` Stop | 每次 Claude 停下 | 发汇报邮件并阻塞等你回复，注入指示让 Claude 继续 |
 | `hooks` Notification | 需授权/长时间等待输入 | 发提醒邮件（仅提醒，无法远程点"允许"） |
 | `skills/notify` | Claude 主动判断重要事件 | 训练/构建完成或失败、监控告警时主动发邮件，可选等待回复 |
-| `/email-me:email-notify` | 你手动 | 手动发一封提醒，可 `--wait` 等回复 |
-| `/email-me:email-watch` | 你主动发问 | 拉一次邮箱，把你发来的问题当查询，查实时状态后回信；配 `/loop` 常驻 |
-
-> 命令带插件命名空间前缀 `email-me:`，直接敲 `/email-watch` 会报 `Unknown command`。
+| `/email-me:notify` | 你手动 | 手动发一封提醒，可 `--wait` 等回复 |
+| `/email-me:watch` | 你主动发问 | 拉一次邮箱，把你发来的问题当查询，查实时状态后回信；配 `/loop` 常驻 |
 | `scripts/monitor.py` | 可选后台进程 | 持续把你的回复落盘到 `inbox/`（非阻塞模式备用） |
+
+> 命令带插件命名空间前缀 `email-me:`，直接敲 `/watch` 在有歧义时会报 `Unknown command`。
 
 ## 用户主动发问（查询任务进展）
 
@@ -38,7 +38,7 @@ Claude 停下 ──Stop hook──▶ 发汇报邮件 ──▶ 阻塞轮询收
 
 ```
 # 长任务放后台跑，然后让 Claude 常驻应答（约每分钟应答一次）
-/loop 60s /email-me:email-watch
+/loop 60s /email-me:watch
 ```
 
 每个 tick：`scripts/poll_once.py` 非阻塞拉一次未读 → 有你发来的邮件就交给 Claude →
@@ -47,7 +47,7 @@ Claude `tail` 日志 / 读 metrics，用真实数据组织回答 → `scripts/no
 
 > 零配置替代：训练放后台、让 Claude 停在 Stop，`stop_hook` 的阻塞等待本身就是
 > 一个问答窗口——你发问会被注入，Claude 的回答即下一封汇报邮件。适合一次性追问；
-> 要"随时反复问、不因超时结束"，用上面的 `/loop 60s /email-me:email-watch`。
+> 要"随时反复问、不因超时结束"，用上面的 `/loop 60s /email-me:watch`。
 
 ## 安装
 
@@ -59,14 +59,14 @@ Claude `tail` 日志 / 读 metrics，用真实数据组织回答 → `scripts/no
 
 ```bash
 claude plugin marketplace add SijiaCui/email-me --scope project
-claude plugin install email-me@email-me --scope project
+claude plugin install email-me@ohocui-plugins --scope project
 ```
 
 **全局**（所有项目可用）：去掉 `--scope project` 即可（默认 user 级）。
 
 > 也可用本地路径代替 GitHub repo：`claude plugin marketplace add ./email-me --scope project`（先 `git clone` 到本地）。
 
-装完**重启 Claude Code**（或 `/reload-plugins`）让命令、hooks、skill 生效；用 `claude plugin list` 确认 `email-me@email-me` 为 enabled。
+装完**重启 Claude Code**（或 `/reload-plugins`）让命令、hooks、skill 生效；用 `claude plugin list` 确认 `email-me@ohocui-plugins` 为 enabled。
 
 ### 2. 配置环境变量
 
@@ -85,12 +85,12 @@ export EMAIL_REMOTE=1   # 开启遥控；不设则 Stop/Notification hook 不发
 ### 3. 验证
 
 ```bash
-/email-me:email-notify 测试一下         # 应收到一封提醒邮件
+/email-me:notify 测试一下         # 应收到一封提醒邮件
 ```
 
 > 首次运行脚本发信时，Claude Code 会弹权限请求，选「允许」即可；自动模式下可能被拦，手动确认或在 `.claude/settings.local.json` 的 `permissions.allow` 里加规则放行：
 > ```json
-> "Bash(python3 *)", "Skill(email-me:email-watch)"
+> "Bash(python3 *)", "Skill(email-me:notify)"
 > ```
 
 ## 配置项
