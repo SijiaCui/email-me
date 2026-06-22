@@ -1,109 +1,139 @@
 # email-me
 
-通过**邮件**远程监控、监督并指导 Claude Code。无论你在哪，只要能收发邮件，就能：
+**English** · [中文](README-CN.md)
 
-- 在**任务停下**、**需要授权/决策**、**重要事件**（训练完成/失败、监控告警）时收到提醒；
-- **回复邮件**即可给出下一步指示，Claude 自动据此继续 —— 真正的远程遥控。
+Monitor, supervise, and steer Claude Code remotely **over email**. Wherever you
+are, as long as you can send and receive mail, you can:
 
-## 工作原理
+- get notified when a **task stops**, when Claude **needs permission/a decision**,
+  or on **important events** (training finished/failed, monitoring alerts);
+- **reply to the email** with your next instruction and Claude continues
+  automatically — genuine remote control.
+
+## How it works
 
 ```
-/email-me:remote on ──布防──▶ Claude 停下 ──Stop hook──▶ 发汇报邮件 ──▶ 阻塞轮询收件箱
+/email-me:remote on ──arm──▶ Claude stops ──Stop hook──▶ send report email ──▶ poll inbox (blocking)
                                                               │
-            你手机回复邮件 ──────────────────────────────────┘
+              you reply from your phone ─────────────────────┘
                                                               ▼
-              {"decision":"block","reason": 你的指示} ──▶ Claude 继续干活 ──▶ 再次停下…
+              {"decision":"block","reason": your instruction} ──▶ Claude keeps working ──▶ stops again…
 ```
 
-走开前 `/email-me:remote on` 布防（或 `once` 只等一次）；回到电脑或回复 `stop`/`结束` 即撤防、终止闭环；超时无回复也会自动结束。**未布防时（默认）每次停下都不打扰**。
+Before you step away, `/email-me:remote on` to arm (or `once` to wait just one
+time). Back at the keyboard, or reply `stop` / `结束`, to disarm and end the
+loop; a wait with no reply also times out. **When not armed (the default),
+every stop is silent and undisturbed.**
 
-## 组成
+## Components
 
-| 部分 | 触发 | 作用 |
-|------|------|------|
-| `hooks` Stop | 每次 Claude 停下**且已布防** | 发汇报邮件并阻塞等你回复，注入指示让 Claude 继续 |
-| `hooks` Notification | 需授权/长时间等待输入**且已布防** | 发提醒邮件（仅提醒，无法远程点"允许"） |
-| `/email-me:remote` | 你手动 | 布防/撤防：`on`/`once`/`off`，控制停下时是否发邮件等待 |
-| `skills/notify` | Claude 主动判断重要事件 | 训练/构建完成或失败、监控告警时主动发邮件，可选等待回复 |
-| `/email-me:notify` | 你手动 | 手动发一封提醒，可 `--wait` 等回复 |
-| `/email-me:watch` | 你主动发问 | 拉一次邮箱，把你发来的问题当查询，查实时状态后回信；配 `/loop` 常驻 |
-| `scripts/monitor.py` | 可选后台进程 | 持续把你的回复落盘到 `inbox/`（非阻塞模式备用） |
+| Part | Trigger | Role |
+|------|---------|------|
+| `hooks` Stop | every time Claude stops **and armed** | sends a report email and blocks waiting for your reply, injecting it so Claude continues |
+| `hooks` Notification | Claude needs permission / long idle **and armed** | sends an alert email (alert only — can't remotely click "allow") |
+| `/email-me:remote` | you, manually | arm/disarm: `on`/`once`/`off`, controls whether a stop emails and waits |
+| `skills/notify` | Claude judges an event important | proactively emails on training/build done-or-failed, monitoring alerts; can optionally wait for a reply |
+| `/email-me:notify` | you, manually | send one alert by hand; `--wait` to block for a reply |
+| `/email-me:watch` | you ask, unprompted | poll the inbox once, treat your mail as a query, gather live state and reply; pair with `/loop` to keep it running |
+| `scripts/monitor.py` | optional background process | continuously persists your replies to `inbox/` (fallback for non-blocking mode) |
 
-> 命令带插件命名空间前缀 `email-me:`，直接敲 `/watch` 在有歧义时会报 `Unknown command`。
+> Commands carry the plugin namespace prefix `email-me:`; typing a bare `/watch`
+> may report `Unknown command` when ambiguous.
 
-## 用户主动发问（查询任务进展）
+## User-initiated queries (check task progress)
 
-和上面的「事件 → 通知」相反：没有事件触发，你在**任意时刻**主动发邮件问，例如
-"训练进展如何？"。要点是——回答这种问题需要 Claude 看实时状态，所以入站查询靠
-**让 Claude 周期性拉邮箱并回信**实现：
+The opposite of "event → notification": with no event triggering it, you email
+a question **at any time**, e.g. "How's the training going?". The key point is
+that answering this needs Claude to look at live state, so inbound queries work
+by **having Claude poll the inbox periodically and reply**:
 
 ```
-# 长任务放后台跑，然后让 Claude 常驻应答（约每分钟应答一次）
+# run the long task in the background, then keep Claude answering (~once a minute)
 /loop 60s /email-me:watch
 ```
 
-每个 tick：`scripts/poll_once.py` 非阻塞拉一次未读 → 有你发来的邮件就交给 Claude →
-Claude `tail` 日志 / 读 metrics，用真实数据组织回答 → `scripts/notify.py` 回信给你。
-无新邮件则该 tick 空过。
+Each tick: `scripts/poll_once.py` does one non-blocking fetch → any mail from you
+is handed to Claude → Claude `tail`s logs / reads metrics and answers from real
+data → `scripts/notify.py` mails the answer back. If there's no new mail the
+tick is a no-op.
 
-> 零配置替代：训练放后台、让 Claude 停在 Stop，`stop_hook` 的阻塞等待本身就是
-> 一个问答窗口——你发问会被注入，Claude 的回答即下一封汇报邮件。适合一次性追问；
-> 要"随时反复问、不因超时结束"，用上面的 `/loop 60s /email-me:watch`。
+> Zero-config alternative: run training in the background, let Claude sit at a
+> Stop, and `stop_hook`'s blocking wait is itself a Q&A window — your question is
+> injected and Claude's answer becomes the next report email. Good for a one-off
+> follow-up; for "ask repeatedly, don't end on timeout" use the
+> `/loop 60s /email-me:watch` above.
 
-## 安装
+## Install
 
-> 需要带插件功能的 Claude Code（`claude plugin` 命令）。本仓库已含 `.claude-plugin/marketplace.json`，可直接作为 marketplace 添加。
+> Requires a Claude Code with plugin support (the `claude plugin` command). This
+> repo ships `.claude-plugin/marketplace.json`, so it can be added as a
+> marketplace directly.
 
-### 1. 安装插件
+### 1. Install the plugin
 
-**项目级**（只在当前项目启用，适合临时盯某个任务）：
+**Project-scoped** (enabled only in the current project, good for watching one
+task temporarily):
 
 ```bash
 claude plugin marketplace add SijiaCui/email-me --scope project
 claude plugin install email-me@ohocui-plugins --scope project
 ```
 
-**全局**（所有项目可用）：去掉 `--scope project` 即可（默认 user 级）。
+**Global** (available in all projects): drop `--scope project` (defaults to user
+scope).
 
-> 也可用本地路径代替 GitHub repo：`claude plugin marketplace add ./email-me --scope project`（先 `git clone` 到本地）。
+> A local path also works instead of the GitHub repo:
+> `claude plugin marketplace add ./email-me --scope project` (after `git clone`).
 
-装完**重启 Claude Code**（或 `/reload-plugins`）让命令、hooks、skill 生效；用 `claude plugin list` 确认 `email-me@ohocui-plugins` 为 enabled。
+After installing, **restart Claude Code** (or `/reload-plugins`) so the commands,
+hooks, and skill take effect; run `claude plugin list` and confirm
+`email-me@ohocui-plugins` is enabled.
 
-### 2. 配置环境变量
+### 2. Configure environment variables
 
-在**启动 Claude 的 shell** 里：
-
-```bash
-export EMAIL_BOT=<bot 发件邮箱(163)，如 your-bot@163.com>
-export EMAIL_PW=<bot 邮箱的 IMAP/SMTP 授权码>
-export EMAIL_PEER=<你的收件邮箱，如 you@example.com>
-```
-
-> **布防开关**：Stop/Notification hook 默认 `off`、完全静默，不会被每次停下打扰。要远程盯任务时用 `/email-me:remote on`（或 `once` 只等一次）布防，hook 才会发邮件+等待；`off` 撤防。这是唯一的总开关，无需任何环境变量。
-> SMTP/IMAP **服务器硬编码为 163**（`smtp.163.com` / `imap.163.com`），换服务商需改 `scripts/send.py` / `scripts/receive.py`。
-
-### 3. 验证
+In the **shell that launches Claude**:
 
 ```bash
-/email-me:notify 测试一下         # 应收到一封提醒邮件
+export EMAIL_BOT=<bot sender mailbox (163), e.g. your-bot@163.com>
+export EMAIL_PW=<the bot mailbox's IMAP/SMTP auth code>
+export EMAIL_PEER=<your receiving mailbox, e.g. you@example.com>
 ```
 
-> 首次运行脚本发信时，Claude Code 会弹权限请求，选「允许」即可；自动模式下可能被拦，手动确认或在 `.claude/settings.local.json` 的 `permissions.allow` 里加规则放行：
+> **Arm switch**: the Stop/Notification hooks default to `off` and are fully
+> silent — they won't disturb you on every stop. To watch a task remotely, arm
+> with `/email-me:remote on` (or `once` to wait just one time) and the hooks
+> will email + wait; `off` disarms. This is the single master switch — no
+> environment variable needed to enable it.
+> The SMTP/IMAP **servers are hardcoded to 163** (`smtp.163.com` /
+> `imap.163.com`); switching providers means editing `scripts/send.py` /
+> `scripts/receive.py`.
+
+### 3. Verify
+
+```bash
+/email-me:notify just testing         # you should receive an alert email
+```
+
+> The first time a script sends mail, Claude Code prompts for permission — pick
+> "allow". In automated modes it may be blocked; confirm manually, or add rules
+> to `permissions.allow` in `.claude/settings.local.json`:
 > ```json
 > "Bash(python3 *)", "Skill(email-me:notify)"
 > ```
 
-## 配置项
+## Configuration
 
-| 变量 | 默认 | 说明 |
-|------|------|------|
-| `EMAIL_BOT` | 必填 | 发件+被监控的 bot 邮箱（163） |
-| `EMAIL_PW` | 必填 | bot 邮箱授权码 |
-| `EMAIL_PEER` | 必填 | 你的收件地址 |
-| `EMAIL_WAIT_TIMEOUT` | `1500` | Stop hook 等回复的秒数（须 ≤ hooks.json 的 `timeout` 1800） |
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `EMAIL_BOT` | required | the bot mailbox that sends and is monitored (163) |
+| `EMAIL_PW` | required | the bot mailbox's auth code |
+| `EMAIL_PEER` | required | your receiving address |
+| `EMAIL_WAIT_TIMEOUT` | `1500` | seconds the Stop hook waits for a reply (must be ≤ `hooks.json`'s `timeout` of 1800) |
 
-## 限制
+## Limitations
 
-- Notification（授权请求）只能提醒，无法远程批准 —— 真正的遥控走 Stop 闭环。
-- Stop hook 阻塞期间该会话被冻结等待，属预期行为。
-- bot 账号可经 `EMAIL_BOT` 配置，但 SMTP/IMAP 服务器硬编码为 163，换服务商需改 `send.py` / `receive.py`。
+- Notification (permission requests) can only alert, not approve remotely — real
+  remote control goes through the Stop loop.
+- While the Stop hook blocks, that session is frozen waiting; this is expected.
+- The bot account is configurable via `EMAIL_BOT`, but the SMTP/IMAP servers are
+  hardcoded to 163; switching providers means editing `send.py` / `receive.py`.
