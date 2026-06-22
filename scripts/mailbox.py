@@ -12,8 +12,42 @@ from send import PEER, SUBJECT
 
 INBOX_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "inbox")
 
+# 布防状态文件：控制 Stop/Notification hook 停下时是否发邮件+等待
+STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".remote_state")
+ARM_MODES = {"on", "once", "off"}  # on=持续布防 once=只等下一次 off=不打扰(默认)
+
 # 终止关键词：回复其中任一即视为结束遥控，不再注入下一步指示
 STOP_WORDS = {"stop", "结束", "停止", "退出", "done", "quit"}
+
+
+def arm_state():
+    """读取当前布防模式：on / once / off。文件缺失/不可读/内容非法都视为 off。"""
+    try:
+        # errors="replace" 防止损坏的状态文件抛 UnicodeDecodeError 把 hook 搞崩
+        with open(STATE_FILE, encoding="utf-8", errors="replace") as f:
+            mode = f.read().strip()
+    except OSError:
+        return "off"
+    return mode if mode in ARM_MODES else "off"
+
+
+def set_arm(mode):
+    """设置布防模式；off 时删除状态文件。无效模式抛 ValueError。"""
+    if mode not in ARM_MODES:
+        raise ValueError(f"无效模式: {mode}（可选 {'/'.join(sorted(ARM_MODES))}）")
+    if mode == "off":
+        try:
+            os.remove(STATE_FILE)
+        except FileNotFoundError:
+            pass
+        return
+    with open(STATE_FILE, "w", encoding="utf-8") as f:
+        f.write(mode)
+
+
+def disarm():
+    """撤防（等价于 set_arm("off")）。"""
+    set_arm("off")
 
 
 def is_from_peer(m):

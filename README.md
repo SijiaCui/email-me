@@ -8,21 +8,22 @@
 ## 工作原理
 
 ```
-Claude 停下 ──Stop hook──▶ 发汇报邮件 ──▶ 阻塞轮询收件箱
-                                              │
-        你手机回复邮件 ──────────────────────┘
-                                              ▼
+/email-me:remote on ──布防──▶ Claude 停下 ──Stop hook──▶ 发汇报邮件 ──▶ 阻塞轮询收件箱
+                                                              │
+            你手机回复邮件 ──────────────────────────────────┘
+                                                              ▼
               {"decision":"block","reason": 你的指示} ──▶ Claude 继续干活 ──▶ 再次停下…
 ```
 
-回复 `stop` / `结束` 即终止闭环；超时无回复也会自动结束。
+走开前 `/email-me:remote on` 布防（或 `once` 只等一次）；回到电脑或回复 `stop`/`结束` 即撤防、终止闭环；超时无回复也会自动结束。**未布防时（默认）每次停下都不打扰**。
 
 ## 组成
 
 | 部分 | 触发 | 作用 |
 |------|------|------|
-| `hooks` Stop | 每次 Claude 停下 | 发汇报邮件并阻塞等你回复，注入指示让 Claude 继续 |
-| `hooks` Notification | 需授权/长时间等待输入 | 发提醒邮件（仅提醒，无法远程点"允许"） |
+| `hooks` Stop | 每次 Claude 停下**且已布防** | 发汇报邮件并阻塞等你回复，注入指示让 Claude 继续 |
+| `hooks` Notification | 需授权/长时间等待输入**且已布防** | 发提醒邮件（仅提醒，无法远程点"允许"） |
+| `/email-me:remote` | 你手动 | 布防/撤防：`on`/`once`/`off`，控制停下时是否发邮件等待 |
 | `skills/notify` | Claude 主动判断重要事件 | 训练/构建完成或失败、监控告警时主动发邮件，可选等待回复 |
 | `/email-me:notify` | 你手动 | 手动发一封提醒，可 `--wait` 等回复 |
 | `/email-me:watch` | 你主动发问 | 拉一次邮箱，把你发来的问题当查询，查实时状态后回信；配 `/loop` 常驻 |
@@ -76,10 +77,10 @@ claude plugin install email-me@ohocui-plugins --scope project
 export EMAIL_BOT=<bot 发件邮箱(163)，如 your-bot@163.com>
 export EMAIL_PW=<bot 邮箱的 IMAP/SMTP 授权码>
 export EMAIL_PEER=<你的收件邮箱，如 you@example.com>
-export EMAIL_REMOTE=1   # 开启遥控；不设则 Stop/Notification hook 不发邮件
+export EMAIL_REMOTE=1   # 功能总闸；还需 /email-me:remote on 布防才会真正发邮件
 ```
 
-> `EMAIL_REMOTE` 是总开关：本地日常使用时不设它，hook 完全静默；要远程盯任务时再 `export EMAIL_REMOTE=1`。
+> **两级控制**：`EMAIL_REMOTE` 是功能总闸（放 shell rc 里长期开着无妨）；真正决定"停下时是否发邮件+等待"的是**布防状态**，默认 `off`，用 `/email-me:remote` 随时切换。只有 `EMAIL_REMOTE=1` **且**已布防，hook 才会动作——所以本地日常交互不会被每次停下打扰。
 > SMTP/IMAP **服务器硬编码为 163**（`smtp.163.com` / `imap.163.com`），换服务商需改 `scripts/send.py` / `scripts/receive.py`。
 
 ### 3. 验证
@@ -100,7 +101,7 @@ export EMAIL_REMOTE=1   # 开启遥控；不设则 Stop/Notification hook 不发
 | `EMAIL_BOT` | 必填 | 发件+被监控的 bot 邮箱（163） |
 | `EMAIL_PW` | 必填 | bot 邮箱授权码 |
 | `EMAIL_PEER` | 必填 | 你的收件地址 |
-| `EMAIL_REMOTE` | 未设 | 设为任意非空值开启 Stop/Notification 邮件遥控 |
+| `EMAIL_REMOTE` | 未设 | 功能总闸；设为非空值才允许 hook 动作（还需 `/email-me:remote on` 布防） |
 | `EMAIL_WAIT_TIMEOUT` | `1500` | Stop hook 等回复的秒数（须 ≤ hooks.json 的 `timeout` 1800） |
 
 ## 限制

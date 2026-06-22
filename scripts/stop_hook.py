@@ -18,7 +18,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from send import send_email, PEER  # noqa: E402
-from mailbox import wait_for_reply, drain, is_stop  # noqa: E402
+from mailbox import wait_for_reply, drain, is_stop, arm_state, disarm  # noqa: E402
 
 # hook 整体最长等待（秒）。须 <= hooks.json 里配置的 timeout。
 WAIT_TIMEOUT = int(os.getenv("EMAIL_WAIT_TIMEOUT", "1500"))
@@ -60,7 +60,10 @@ def _last_assistant_text(transcript_path):
 
 def main():
     if not os.getenv("EMAIL_REMOTE"):
-        sys.exit(0)  # 未开启遥控，正常放行
+        sys.exit(0)  # 功能总闸未开，正常放行
+    mode = arm_state()
+    if mode == "off":
+        sys.exit(0)  # 未布防：停下不打扰（默认），不发邮件、不阻塞
     if not os.getenv("EMAIL_PW"):
         _log("EMAIL_PW 未设置，跳过")
         sys.exit(0)
@@ -92,12 +95,16 @@ def main():
         _log(f"发送失败，放行: {e}")
         sys.exit(0)
 
+    if mode == "once":
+        disarm()  # 邮件已发出才消费一次性布防；发送失败则不消费，下次停下重试
+
     reply, _ = wait_for_reply(timeout=WAIT_TIMEOUT, email_pw=os.getenv("EMAIL_PW"), log=_log)
     if reply is None:
         _log("超时无回复，放行")
         sys.exit(0)
     if is_stop(reply):
-        _log("收到终止指令，放行")
+        disarm()  # 用户喊停，撤防，避免后续每次停下又重新等待
+        _log("收到终止指令，撤防并放行")
         sys.exit(0)
 
     # 把你的邮件指示注入回 Claude，让它继续

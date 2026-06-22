@@ -12,11 +12,14 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from send import send_email, PEER  # noqa: E402
+from mailbox import arm_state  # noqa: E402
 
 
 def main():
     if not os.getenv("EMAIL_REMOTE") or not os.getenv("EMAIL_PW"):
         sys.exit(0)
+    if arm_state() == "off":
+        sys.exit(0)  # 未布防：不打扰
     try:
         payload = json.load(sys.stdin)
     except Exception:
