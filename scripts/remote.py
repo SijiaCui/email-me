@@ -31,6 +31,8 @@ def main():
             print(e, file=sys.stderr)
             sys.exit(1)
         print(f"remote -> {arg}（{_DESC[arg]}）")
+        if arg in ("on", "once"):
+            print("已布防，从「下一次」Claude 停下开始生效；布防命令本回合不会触发。")
 
 
 if __name__ == "__main__":

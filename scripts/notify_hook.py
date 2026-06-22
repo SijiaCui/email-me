@@ -12,12 +12,14 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from send import send_email, PEER  # noqa: E402
-from mailbox import arm_state  # noqa: E402
+from mailbox import arm_state, is_fresh  # noqa: E402
 
 
 def main():
     if arm_state() == "off":
         sys.exit(0)  # 未布防（默认）：不打扰
+    if is_fresh():
+        sys.exit(0)  # 刚布防，本回合不打扰（fresh 由 stop hook 吸收清除）
     if not os.getenv("EMAIL_PW"):
         sys.exit(0)
     try:

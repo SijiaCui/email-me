@@ -18,7 +18,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from send import send_email, PEER  # noqa: E402
-from mailbox import wait_for_reply, drain, is_stop, arm_state, disarm  # noqa: E402
+from mailbox import wait_for_reply, drain, is_stop, arm_state, disarm, is_fresh, clear_fresh  # noqa: E402
 
 # hook 整体最长等待（秒）。须 <= hooks.json 里配置的 timeout。
 WAIT_TIMEOUT = int(os.getenv("EMAIL_WAIT_TIMEOUT", "1500"))
@@ -62,6 +62,10 @@ def main():
     mode = arm_state()
     if mode == "off":
         sys.exit(0)  # 未布防（默认）：停下不打扰，不发邮件、不阻塞
+    if is_fresh():
+        clear_fresh()  # 布防命令那一回合自身的停下，吸收掉；布防从下次停下起生效
+        _log("刚布防，跳过本回合自身的停下；下次停下起生效")
+        sys.exit(0)
     if not os.getenv("EMAIL_PW"):
         _log("EMAIL_PW 未设置，跳过")
         sys.exit(0)

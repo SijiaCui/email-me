@@ -23,7 +23,9 @@ are, as long as you can send and receive mail, you can:
 Before you step away, `/email-me:remote on` to arm (or `once` to wait just one
 time). Back at the keyboard, or reply `stop` / `结束`, to disarm and end the
 loop; a wait with no reply also times out. **When not armed (the default),
-every stop is silent and undisturbed.**
+every stop is silent and undisturbed.** Arming takes effect from the **next**
+stop — the stop that ends the arming command's own turn is skipped, so it never
+fires an email or burns a `once`.
 
 ## Components
 

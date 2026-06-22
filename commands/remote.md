@@ -17,3 +17,5 @@ python3 ${CLAUDE_PLUGIN_ROOT}/scripts/remote.py $ARGUMENTS
 - `status` / 不带参数 —— 查看当前状态。
 
 未布防（off，默认）时 Stop/Notification hook 完全静默——这是唯一的总开关。
+
+布防（`on`/`once`）从**下一次** Claude 停下才生效：布防命令本身是一个回合，其回合结束的停下会被自动跳过，不会触发邮件、也不会消费 `once`。
